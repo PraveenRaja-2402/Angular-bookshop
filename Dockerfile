@@ -1,21 +1,34 @@
-# Use an official Node.js LTS (Long Term Support) image as a parent image
-FROM node:18.13
+# Use Node.js 18 (LTS) as the base image for building
+FROM node:18 as build
 
-# Set the working directory to /app
+# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json to the working directory
+# Copy package.json and package-lock.json to install dependencies
 COPY package*.json ./
 
-# Install Angular CLI and dependencies
-RUN npm install -g @angular/cli
+# Install Angular CLI and project dependencies
+RUN npm install -g @angular/cli@16.2.10
 RUN npm install
 
-# Copy the rest of your application code to the working directory
+# Copy the entire project to the container
 COPY . .
 
-# Expose the port your Angular app will run on (e.g., 4200)
-EXPOSE 4200
+# Build the Angular app for production
+RUN ng build 
 
-# Start the Angular application
-CMD ["ng", "serve", "--host", "0.0.0.0"]
+# Use NGINX as the server for serving the app
+FROM nginx:alpine
+
+# Copy the built app from the previous stage to NGINX directory
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Replace default NGINX configuration with custom configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Expose the default NGINX port
+EXPOSE 80
+
+# Command to start NGINX
+CMD ["nginx", "-g", "daemon off;"]
+
